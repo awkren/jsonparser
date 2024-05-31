@@ -197,7 +197,13 @@ impl<'json> Par<'json> {
                 Ok(JsonValue::Object(std::mem::take(&mut self.obj)))
             }
 
-            Token::Comma => todo!(),
+            Token::Comma => {
+                self.advance();
+                if matches!(self.cur, Token::Eof | Token::RBracket | Token::RBrace) {
+                    return Err("Unexpected end of input after ','.".to_string());
+                }
+                Ok(JsonValue::Null)
+            }
             Token::Colon => todo!(),
 
             Token::Eof => return Err("Reached EOF.".to_string()),
