@@ -204,7 +204,15 @@ impl<'json> Par<'json> {
                 }
                 Ok(JsonValue::Null)
             }
-            Token::Colon => todo!(),
+            Token::Colon => {
+                self.advance();
+                if let Token::Colon = self.cur {
+                    self.advance();
+                    Ok(JsonValue::Null)
+                } else {
+                    Err("Expected ':'.".to_string())
+                }
+            }
 
             Token::Eof => return Err("Reached EOF.".to_string()),
             Token::IllegalIdent => todo!(),
