@@ -108,6 +108,7 @@ pub struct Par<'json> {
     lex: Lex<'json>,
     mem: Allocator<JsonValue>,
     list: Vec<Id<JsonValue>>,
+    obj: HashMap<String, Id<JsonValue>>,
 }
 
 impl<'json> Par<'json> {
@@ -116,12 +117,14 @@ impl<'json> Par<'json> {
         let nxt = lex.next_token();
         let mem = Allocator::make(mem);
         let list = Vec::new();
+        let obj = HashMap::new();
         Self {
             cur,
             nxt,
             lex,
             mem,
             list,
+            obj,
         }
     }
 
@@ -168,7 +171,7 @@ impl<'json> Par<'json> {
             }
 
             Token::LBrace => {
-                let mut obj = HashMap::new();
+                self.obj.clear();
                 self.advance();
                 loop {
                     if matches!(self.cur, Token::RBrace) {
@@ -185,11 +188,14 @@ impl<'json> Par<'json> {
                     }
                     let val = self.go_parse()?;
                     let id = self.mem.alloc(val);
-                    obj.insert(key, id);
+                    self.obj.insert(key, id);
                 }
-                Ok(JsonValue::Object(obj))
+                Ok(JsonValue::Object(std::mem::take(&mut self.obj)))
             }
-            Token::RBrace => todo!(),
+            Token::RBrace => {
+                self.advance();
+                Ok(JsonValue::Object(std::mem::take(&mut self.obj)))
+            }
 
             Token::Comma => todo!(),
             Token::Colon => todo!(),
