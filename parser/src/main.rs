@@ -73,7 +73,30 @@ impl<'json> Lex<'json> {
     }
 
     fn num(&mut self) -> Token {
-        todo!()
+        let mut s = String::new();
+        let mut is_float = false;
+        while let Some(chr) = self.code.peek() {
+            match chr {
+                '0'..='9' => s.push(self.code.next().unwrap()),
+                '.' if !is_float => {
+                    s.push(self.code.next().unwrap());
+                    is_float = true;
+                }
+                _ => break,
+            }
+        }
+
+        if is_float {
+            match s.parse::<f64>() {
+                Ok(n) => Token::Num(n),
+                Err(_) => Token::IllegalIdent(s),
+            }
+        } else {
+            match s.parse::<i64>() {
+                Ok(n) => Token::Num(n as f64),
+                Err(_) => Token::IllegalIdent(s),
+            }
+        }
     }
 
     fn just(&mut self, t: Token) -> Token {
