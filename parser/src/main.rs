@@ -36,7 +36,7 @@ enum Token {
     Comma,
     Colon,
     Eof,
-    IllegalIdent,
+    IllegalIdent(String),
 }
 
 impl<'json> Lex<'json> {
@@ -97,7 +97,7 @@ impl<'json> Lex<'json> {
         } else if &s == "null" {
             Token::Null
         } else {
-            Token::IllegalIdent
+            Token::IllegalIdent(s)
         }
     }
 }
@@ -167,7 +167,19 @@ impl<'json> Par<'json> {
             }
             Token::RBracket => {
                 self.advance();
-                Ok(JsonValue::List(std::mem::take(&mut self.list)))
+                if matches!(
+                    self.cur,
+                    Token::Eof
+                        | Token::RBracket
+                        | Token::RBrace
+                        | Token::Comma
+                        | Token::Colon
+                        | Token::LBrace
+                ) {
+                    Ok(JsonValue::List(std::mem::take(&mut self.list)))
+                } else {
+                    Err("Unexpected ']'.".to_string())
+                }
             }
 
             Token::LBrace => {
@@ -193,6 +205,7 @@ impl<'json> Par<'json> {
                 Ok(JsonValue::Object(std::mem::take(&mut self.obj)))
             }
             Token::RBrace => {
+                println!("find }}");
                 self.advance();
                 Ok(JsonValue::Object(std::mem::take(&mut self.obj)))
             }
@@ -204,6 +217,7 @@ impl<'json> Par<'json> {
                 }
                 Ok(JsonValue::Null)
             }
+
             Token::Colon => {
                 self.advance();
                 if let Token::Colon = self.cur {
@@ -215,7 +229,14 @@ impl<'json> Par<'json> {
             }
 
             Token::Eof => return Err("Reached EOF.".to_string()),
-            Token::IllegalIdent => todo!(),
+
+            Token::IllegalIdent(s) => {
+                if matches!(self.nxt, Token::RBrace) {
+                    return Err(format!("Unexpected '{s}' after '}}'."));
+                } else {
+                    return Err(format!("Unexpected '{s}'."));
+                }
+            }
         };
         self.advance();
         tk
