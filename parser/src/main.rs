@@ -1,6 +1,6 @@
 use std::{collections::HashMap, iter::Peekable, marker::PhantomData, str::Chars};
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub enum JsonValue {
     String(String),
     Number(f64),
@@ -135,10 +135,23 @@ impl<'json> Par<'json> {
         ret
     }
 
-    pub fn parse(src: &'json str, mem: usize) -> Result<(JsonValue, Allocator<JsonValue>), String> {
+    pub fn parse(
+        src: &'json str,
+        mem: usize,
+    ) -> Result<Vec<(JsonValue, Allocator<JsonValue>)>, String> {
         let mut parser = Self::init(Lex::new(src), mem);
-        let result = parser.go_parse()?;
-        Ok((result, parser.mem))
+        let mut results = Vec::new();
+        loop {
+            let result = parser.go_parse()?;
+            results.push((result, parser.mem.clone()));
+            if matches!(parser.cur, Token::Eof) {
+                break;
+            }
+            if matches!(parser.cur, Token::Comma) {
+                parser.advance();
+            }
+        }
+        Ok(results)
     }
 
     pub fn go_parse(&mut self) -> Result<JsonValue, String> {
@@ -183,6 +196,8 @@ impl<'json> Par<'json> {
             }
 
             Token::LBrace => {
+                println!("inside lbrace");
+                println!("self.cur {:?}", self.cur);
                 self.obj.clear();
                 self.advance();
                 loop {
@@ -190,6 +205,8 @@ impl<'json> Par<'json> {
                         break;
                     }
                     if matches!(self.cur, Token::Comma) {
+                        println!("found comma");
+                        println!(" next is {:?}", self.nxt);
                         self.advance();
                     }
                     let key = self.expect_str()?;
@@ -204,10 +221,17 @@ impl<'json> Par<'json> {
                 }
                 Ok(JsonValue::Object(std::mem::take(&mut self.obj)))
             }
+
             Token::RBrace => {
-                println!("find }}");
                 self.advance();
-                Ok(JsonValue::Object(std::mem::take(&mut self.obj)))
+                if matches!(
+                    self.cur,
+                    Token::Eof | Token::Comma | Token::RBracket | Token::RBrace
+                ) {
+                    Ok(JsonValue::Object(std::mem::take(&mut self.obj)))
+                } else {
+                    Err("Unexpected '}}'.".to_string())
+                }
             }
 
             Token::Comma => {
@@ -256,13 +280,15 @@ fn main() {
     let src = include_str!("../file.json");
 
     match Par::parse(src, 1 << 4) {
-        Ok((res, mem)) => {
-            for el in mem.vec {
-                println!("{el:?}");
+        Ok(results) => {
+            for (res, mem) in results {
+                for el in mem.vec {
+                    println!("{:?}", el);
+                }
+                println!("{res:?}");
             }
-            println!("{res:?}");
         }
-        Err(e) => eprint!("{e}"),
+        Err(e) => eprintln!("{e}"),
     }
 }
 
@@ -272,12 +298,28 @@ pub struct Allocator<T> {
     vec: Vec<T>,
 }
 
+impl<T: Clone> Clone for Allocator<T> {
+    fn clone(&self) -> Self {
+        Allocator {
+            curr: self.curr,
+            size: self.size,
+            vec: self.vec.clone(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Id<T>(usize, PhantomData<T>);
 
 impl<T> Id<T> {
     pub fn id(id: usize) -> Self {
         Self(id, PhantomData)
+    }
+}
+
+impl<T> Clone for Id<T> {
+    fn clone(&self) -> Self {
+        Id(self.0, PhantomData)
     }
 }
 
