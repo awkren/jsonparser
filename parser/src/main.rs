@@ -219,17 +219,15 @@ impl<'json> Par<'json> {
             }
 
             Token::LBrace => {
-                println!("inside lbrace");
-                println!("self.cur {:?}", self.cur);
                 self.obj.clear();
+                println!("prev token {:?}", self.cur);
                 self.advance();
+                println!("cur token {:?}", self.cur);
                 loop {
                     if matches!(self.cur, Token::RBrace) {
                         break;
                     }
                     if matches!(self.cur, Token::Comma) {
-                        println!("found comma");
-                        println!(" next is {:?}", self.nxt);
                         self.advance();
                     }
                     let key = self.expect_str()?;
@@ -266,12 +264,16 @@ impl<'json> Par<'json> {
             }
 
             Token::Colon => {
+                println!("prev token {:?}", self.cur);
                 self.advance();
-                if let Token::Colon = self.cur {
-                    self.advance();
-                    Ok(JsonValue::Null)
+                println!("cur token {:?}", self.cur);
+                if matches!(
+                    self.cur,
+                    Token::LBrace | Token::Str(_) | Token::Num(_) | Token::True | Token::False
+                ) {
+                    Ok(JsonValue::Object(std::mem::take(&mut self.obj)))
                 } else {
-                    Err("Expected ':'.".to_string())
+                    Err("Unexpectd ':'.".to_string())
                 }
             }
 

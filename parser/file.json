@@ -1,10 +1,20 @@
-{
-  "arr": [
-    true,
-    false
-  ]
-},
-
-{
-  "n": 1
-}
+[
+  {
+    "data1": {
+      "key1": "value1",
+      "key2": "value2"
+    }
+  },
+  {
+    "data2": {
+      "key3": 1,
+      "key4": 2.5
+    }
+  },
+  {
+    "data3": {
+      "key5": true,
+      "key6": false
+    }
+  }
+]
